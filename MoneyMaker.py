@@ -11,16 +11,16 @@ import sys
 import math
 
 
-title = "BrentFord (A) team vs West Brom"
-dictWin = {"Sky bet, W1" : 50/20, "VirginBet, W2,":70/5, "William Hill, W3": 17/5}
-dictLose = {"Sky bet, L1" : 190/10, "VirginBet, L2,":1/10, "William Hill, L3": 21/10}
-dictDraw = {"Sky bet, D1" : 32/10, "VirginBet, D2,":19/4, "William Hill, D3": 11/5}
+title = "Swansea vs Luton"
+dictWin = {"Sky bet, W1" : 8/11, "VirginBet, W2,":8/11, "William Hill, W3": 7/10}
+dictLose = {"Sky bet, L1" : 18/5, "VirginBet, L2,":4/1, "William Hill, L3": 19/5}
+dictDraw = {"Sky bet, D1" : 11/4, "VirginBet, D2,":14/5, "William Hill, D3": 29/10}
 
-maxStake = 150.00#
+maxStake = 10.00#
 res = maxStake/100
 
 
-resVec = np.linspace(0, maxStake, 20)
+resVec = np.linspace(0, maxStake, 40)
 
 winVec = [dictWin["Sky bet, W1"], dictWin["VirginBet, W2,"], dictWin["William Hill, W3"]]   #Contains odds in the form of coefficient of stake
 loseVec = [dictLose["Sky bet, L1"], dictLose["VirginBet, L2,"], dictLose["William Hill, L3"]]
@@ -28,49 +28,70 @@ drawVec =[dictDraw["Sky bet, D1"], dictDraw["VirginBet, D2,"], dictDraw["William
 Si = 0.0
 Sj = 0.0
 Sk = 0.0
-permW = 0.0
-permL = 0.0
-permD = 0.0
+Smat = np.zeros(len(resVec)*len(winVec)).reshape(len(resVec), len(winVec))
+
 X=[] # vector of earnings
 outputDict = {}
 bigM = np.zeros(len(winVec)**3, dtype=object).reshape(len(winVec), len(winVec)**2)
 
 permList = list((it.product('012', repeat=3)))
+permW = np.zeros(len(permList))
+permL = np.zeros(len(permList))
+permD = np.zeros(len(permList))
 
 for ii in range(len(permList)):
-    permW = winVec[int(permList[ii][0])]# 
-    permL = loseVec[int(permList[ii][1])]
-    permD = drawVec[int(permList[ii][2])]
-    
-    
+    permW[ii] = winVec[int(permList[ii][0])]# 
+    permL[ii] = loseVec[int(permList[ii][1])]
+    permD[ii] = drawVec[int(permList[ii][2])]
     for jj in range(len(winVec)**2):
         for kk in range(len(winVec)):
+            
             bigM[kk, jj] = -1*np.ones(len(winVec)**2).reshape(len(winVec), len(winVec))
-            bigM[kk, jj][0,0] = permW
-            bigM[kk, jj][1,1] = permL
-            bigM[kk, jj][2,2] = permD
+            bigM[kk, jj][0,0] = permW[kk]
+            bigM[kk, jj][1,1] = permL[kk]
+            bigM[kk, jj][2,2] = permD[kk]
     
             
 
 sep = " " 
 
-for i in resVec:
-    for j in resVec:
-        for k in resVec:
-            Si = i
-            Sj = j 
-            Sk = k
-            Smat = [Si, Sj, Sk]
-            for h in range(len(winVec)):
-                for g in range(len(winVec)**2):
-                    X = np.matmul(bigM[h,g], Smat)
-            
-            for vals in range (len(X)):
-                if(all(aaa >= -100 for aaa in X)):
-                    d = [h,g]
-                    e = sep.join([str(elem) for elem in d])
-                    outputDict[e] = [Smat, X, np.linalg.norm(X)]
+
+
+"""
+FIX BELOW: SAME STAKES FOR EVERY THING 
+"""
+smPermList = list((it.product(resVec, repeat=3)))
+Si = 0.0
+Sj = 0.0
+Sk = 0.0
+Smat = np.zeros(len(smPermList)*len(winVec)).reshape(len(smPermList), len(winVec))
+
+
+jjk = 0
+iMod =0
+jMod = 0
+for i in range(len(smPermList)):
+            Si = smPermList[i][0]
+            Sj =  smPermList[i][1]
+            Sk = smPermList[i][2]
+            Smat[i] = [Si, Sj, Sk]
+            jMod = i%8
+            if jMod == 0:
+                if i >0:
+                    if iMod <2:
+                        iMod+=1
         
+            X = np.matmul(bigM[iMod,jMod], Smat[i])
+            for vals in range (len(X)):
+                if(all(aaa >= -10 for aaa in X)):
+                    d = [iMod,jMod]
+                    e = sep.join([str(elem) for elem in d])
+                    outputDict[e] = [Smat[i], X, np.linalg.norm(X)]
+            
+
+#permutation matrix for submatrix selection   
+# row val kept constant, column varied 
+# 0-2, 0-8  iVec = 
         
 curVal = 0.0 
 curInd = [0,0]       
@@ -115,10 +136,14 @@ for item  in valListDraw:
             drawComp = keyListDraw[valListDraw.index(item)]
 
 print("Companies for win, loss, draw bets for game ", title, ": ", winComp, loseComp, drawComp )
-print("Net loss/gain: ", "£", X-np.sum(outputDict[ind][0]))
-            
-            
 
 
+
+print("Net loss/gain if all bets are placed and team wins/loses/draws: ", "£", X)
+print("remaining initial stake if team wins/loses/draws", np.sum(outputDict[ind][0])+X)
+            
+
+"""
 #iterate through each output element and find vector with max magnitude and
-#associated data. 
+#associated data.
+"""
